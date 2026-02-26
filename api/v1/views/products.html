@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mor Library</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .maxw-800 { max-width: 800px; }
+  </style>
+</head>
+
+<body class="bg-white">
+  <div class="container mt-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="m-0">mor Library</h1>
+      <button class="btn btn-outline-dark" id="logoutBtn" type="button">Logout</button>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card shadow p-4 mx-auto maxw-800">
+      <div class="mb-3">
+        <label for="category" class="form-label">Category</label>
+        <select id="category" class="form-select" aria-label="Category">
+          <option value="Fantasy">Fantasy</option>
+          <option value="Classic">Classic</option>
+          <option value="Science Fiction">Science Fiction</option>
+          <option value="Thriller">Thriller</option>
+          <option value="Fiction">Fiction</option>
+          <option value="History">History</option>
+          <option value="Romance">Romance</option>
+          <option value="Horror">Horror</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label for="minPages" class="form-label">Minimum pages</label>
+        <input type="number" id="minPages" class="form-control" value="0" min="0" aria-label="Minimum pages">
+      </div>
+
+      <div class="mb-3">
+        <label for="maxPages" class="form-label">Maximum pages</label>
+        <input type="number" id="maxPages" class="form-control" value="600" min="0" aria-label="Maximum pages">
+      </div>
+
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox" id="showBorrowed">
+        <label class="form-check-label" for="showBorrowed">Show borrowed books</label>
+      </div>
+
+      <button class="btn btn-dark w-100 mt-3" id="searchBtn" type="button">Search books</button>
+    </div>
+
+    <!-- Add Book Form -->
+    <div class="card mt-4 p-4 mx-auto maxw-800">
+      <h5 class="mb-3">Add a new book</h5>
+
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label for="newPrice" class="form-label">Price</label>
+          <input type="number" id="newPrice" class="form-control" placeholder="e.g. 70" min="0">
+        </div>
+
+        <div class="col-md-6">
+          <label for="newName" class="form-label">Book name</label>
+          <input type="text" id="newName" class="form-control" placeholder="e.g. Harry Potter">
+        </div>
+
+        <div class="col-md-6">
+          <label for="newAuthor" class="form-label">Author</label>
+          <input type="text" id="newAuthor" class="form-control" placeholder="e.g. J.K. Rowling">
+        </div>
+
+        <div class="col-md-3">
+          <label for="newCategory" class="form-label">Category</label>
+          <select id="newCategory" class="form-select" aria-label="New book category">
+            <option value="Fantasy">Fantasy</option>
+            <option value="Classic">Classic</option>
+            <option value="Science Fiction">Science Fiction</option>
+            <option value="Thriller">Thriller</option>
+            <option value="Fiction">Fiction</option>
+            <option value="History">History</option>
+            <option value="Romance">Romance</option>
+            <option value="Horror">Horror</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="newPages" class="form-label">Pages</label>
+          <input type="number" id="newPages" class="form-control" placeholder="e.g. 340" min="1">
+        </div>
+      </div>
+
+      <button class="btn btn-primary mt-3" id="addBookBtn" type="button">Add Book</button>
+      <div id="addBookMsg" class="mt-2"></div>
+    </div>
+
+    <!-- Cart -->
+    <div class="card mt-4 p-3 mx-auto maxw-800">
+      <h5>Cart</h5>
+      <ul id="cartList" class="list-group mb-3"></ul>
+      <button class="btn btn-success" id="borrowCartBtn" type="button">Borrow Cart</button>
+      <button class="btn btn-outline-danger mt-2" id="clearCartBtn" type="button">Clear Cart</button>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="mt-5"></div>
+  </div>
+
+  <script>
+    const BASE_URL = "http://localhost:5050";
+
+    // Auth guard
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+
+    function authHeaders(extra = {}) {
+      return { ...extra, Authorization: `Bearer ${token}` };
+    }
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    });
+
+    function escapeHtml(s) {
+      return String(s ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;",
+        '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    // Cart (local for now)
+    let cart = [];
+
+    function renderCart() {
+      const cartList = document.getElementById("cartList");
+      cartList.innerHTML = "";
+
+      if (cart.length === 0) {
+        cartList.innerHTML = "<li class='list-group-item'>Cart is empty</li>";
+        return;
+      }
+
+      cart.forEach(item => {
+        cartList.innerHTML += `
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            ${escapeHtml(item.name)} (pid: ${item.pid})
+            <button class="btn btn-sm btn-danger" type="button" onclick="removeFromCart(${item.pid})">Remove</button>
+          </li>
+        `;
+      });
+    }
+
+    function addToCart(pid, name) {
+      pid = Number(pid);
+      if (cart.some(x => x.pid === pid)) return;
+      cart.push({ pid, name });
+      renderCart();
+    }
+
+    function removeFromCart(pid) {
+      pid = Number(pid);
+      cart = cart.filter(x => x.pid !== pid);
+      renderCart();
+    }
+
+    function clearCart() {
+      cart = [];
+      renderCart();
+    }
+
+    async function borrowCart() {
+      if (cart.length === 0) return alert("Cart is empty");
+
+      const pids = cart.map(x => x.pid);
+
+      const response = await fetch(`${BASE_URL}/product/borrow-cart`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ pids })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        return alert(`Borrow failed: ${response.status}\n${text}`);
+      }
+
+      alert("Borrowed successfully!");
+      clearCart();
+      searchBooks();
+    }
+
+    async function returnBook(pid) {
+      const response = await fetch(`${BASE_URL}/product/return/${pid}`, {
+        method: "PUT",
+        headers: authHeaders()
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        return alert(`Return failed: ${response.status}\n${text}`);
+      }
+
+      alert("Returned!");
+      searchBooks();
+    }
+
+    async function searchBooks() {
+      const category = document.getElementById("category").value;
+
+      let min = Number(document.getElementById("minPages").value);
+      let max = Number(document.getElementById("maxPages").value);
+      if (!Number.isFinite(min)) min = 0;
+      if (!Number.isFinite(max)) max = 1000000;
+      if (min > max) [min, max] = [max, min];
+
+      const showBorrowed = document.getElementById("showBorrowed").checked;
+
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "<p class='text-center'>Loading...</p>";
+
+      const url = `${BASE_URL}/product/filter?category=${encodeURIComponent(category)}&min=${min}&max=${max}&showBorrowed=${showBorrowed}`;
+
+      try {
+        const response = await fetch(url, { headers: authHeaders() });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status} - ${text}`);
+        }
+
+        const books = await response.json();
+        resultsDiv.innerHTML = "";
+
+        if (!Array.isArray(books) || books.length === 0) {
+          resultsDiv.innerHTML = "<p class='text-center'>No books found.</p>";
+          return;
+        }
+
+        books.forEach(book => {
+          const isBorrowed = Boolean(book.isBorrowed);
+          const safeName = String(book.bname ?? "").replace(/'/g, "\\'");
+
+          const actionBtn = isBorrowed
+            ? `<button class="btn btn-danger btn-sm" type="button" onclick="returnBook(${book.pid})">Return</button>`
+            : `<button class="btn btn-primary btn-sm" type="button" onclick="addToCart(${book.pid}, '${safeName}')">Add to cart</button>`;
+
+          resultsDiv.innerHTML += `
+            <div class="card mb-3 shadow-sm mx-auto maxw-800">
+              <div class="card-body">
+                <h5 class="card-title">${escapeHtml(book.bname)}</h5>
+                <p class="card-text">
+                  <strong>Author:</strong> ${escapeHtml(book.bauthor)}<br>
+                  <strong>Pages:</strong> ${book.pages}<br>
+                  <strong>Price:</strong> ₪${book.price}<br>
+                  <strong>Status:</strong> ${isBorrowed ? "Borrowed" : "Available"}
+                </p>
+                ${actionBtn}
+              </div>
+            </div>
+          `;
+        });
+
+      } catch (err) {
+        resultsDiv.innerHTML = `<p class='text-danger text-center'>Error loading books: ${escapeHtml(err.message)}</p>`;
+        console.error(err);
+      }
+    }
+
+    async function addBook() {
+      const msg = document.getElementById("addBookMsg");
+      msg.innerHTML = "";
+
+      const price = Number(document.getElementById("newPrice").value);
+      const bname = document.getElementById("newName").value.trim();
+      const bauthor = document.getElementById("newAuthor").value.trim();
+      const bcategory = document.getElementById("newCategory").value;
+      const pages = Number(document.getElementById("newPages").value);
+
+      if (!price || !bname || !bauthor || !bcategory || !pages) {
+        msg.innerHTML = "<div class='alert alert-danger'>Please fill all fields.</div>";
+        return;
+      }
+
+      const payload = { price, bname, bauthor, bcategory, pages };
+
+      const response = await fetch(`${BASE_URL}/product`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload)
+      });
+
+      const text = await response.text();
+      if (!response.ok) {
+        msg.innerHTML = `<div class='alert alert-danger'>Failed: ${response.status}<br>${escapeHtml(text)}</div>`;
+        return;
+      }
+
+      msg.innerHTML = "<div class='alert alert-success'>Book added successfully!</div>";
+      document.getElementById("newPrice").value = "";
+      document.getElementById("newName").value = "";
+      document.getElementById("newAuthor").value = "";
+      document.getElementById("newPages").value = "";
+
+      searchBooks();
+    }
+
+    function init() {
+      document.getElementById("searchBtn").addEventListener("click", searchBooks);
+      document.getElementById("addBookBtn").addEventListener("click", addBook);
+      document.getElementById("borrowCartBtn").addEventListener("click", borrowCart);
+      document.getElementById("clearCartBtn").addEventListener("click", clearCart);
+
+      renderCart();
+      searchBooks();
+    }
+
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

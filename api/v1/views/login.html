@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login - mor Library</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    .card-max { max-width: 500px; }
+  </style>
+</head>
+
+<body class="bg-white">
+  <div class="container mt-5 card-max">
+    <h2 class="text-center mb-4">mor Library</h2>
+
+    <div class="card p-4 shadow-sm">
+      <h5 class="mb-3">Login</h5>
+
+      <div class="mb-3">
+        <label class="form-label" for="loginUser">Username</label>
+        <input id="loginUser" class="form-control" placeholder="Enter username" title="Username" autocomplete="username">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="loginPass">Password</label>
+        <input id="loginPass" type="password" class="form-control" placeholder="Enter password" title="Password" autocomplete="current-password">
+      </div>
+
+      <button class="btn btn-dark w-100" id="loginBtn" type="button">Login</button>
+      <div id="loginMsg" class="mt-2"></div>
+
+      <hr class="my-4">
+
+      <h5 class="mb-3">Register</h5>
+
+      <div class="mb-3">
+        <label class="form-label" for="regUser">Username</label>
+        <input id="regUser" class="form-control" placeholder="Choose username" title="Username" autocomplete="username">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="regPass">Password</label>
+        <input id="regPass" type="password" class="form-control" placeholder="Choose password" title="Password" autocomplete="new-password">
+      </div>
+
+      <button class="btn btn-primary w-100" id="registerBtn" type="button">Register</button>
+      <div id="regMsg" class="mt-2"></div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "http://localhost:5050";
+
+    if (localStorage.getItem("token")) {
+      window.location.href = "products.html";
+    }
+
+    function show(el, html) { el.innerHTML = html; }
+
+    async function register() {
+      const user = document.getElementById("regUser").value.trim();
+      const pass = document.getElementById("regPass").value;
+      const regMsg = document.getElementById("regMsg");
+      show(regMsg, "");
+
+      if (!user || !pass) return show(regMsg, "<div class='alert alert-danger'>Enter username + password</div>");
+
+      const res = await fetch(`${BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+
+      const text = await res.text();
+      if (!res.ok) return show(regMsg, `<div class='alert alert-danger'>${res.status}: ${text}</div>`);
+
+      show(regMsg, "<div class='alert alert-success'>Registered! Now login.</div>");
+      document.getElementById("regPass").value = "";
+    }
+
+    async function login() {
+      const user = document.getElementById("loginUser").value.trim();
+      const pass = document.getElementById("loginPass").value;
+      const loginMsg = document.getElementById("loginMsg");
+      show(loginMsg, "");
+
+      if (!user || !pass) return show(loginMsg, "<div class='alert alert-danger'>Enter username + password</div>");
+
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+
+      const text = await res.text();
+      if (!res.ok) return show(loginMsg, `<div class='alert alert-danger'>${res.status}: ${text}</div>`);
+
+      const data = JSON.parse(text);
+      if (!data.token) return show(loginMsg, "<div class='alert alert-danger'>No token returned</div>");
+
+      localStorage.setItem("token", data.token);
+      window.location.href = "products.html";
+    }
+
+    document.getElementById("registerBtn").addEventListener("click", register);
+    document.getElementById("loginBtn").addEventListener("click", login);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
