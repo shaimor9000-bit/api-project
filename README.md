@@ -10,7 +10,7 @@ JWT authentication
 
 Basic HTML + Bootstrap frontend
 
-The system allows users to register, log in, browse books, and borrow them.
+The system allows users to register, log in, browse books,add books and borrow them.
 
 
 Authentication :
