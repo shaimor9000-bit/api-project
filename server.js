@@ -1,8 +1,10 @@
-const http=require('http');
-const app=require('./app');// ייבוא של האפליקציה שלנו
-const port=5050;
-const srv=http.createServer(app);
+const http = require("http");
+const app = require("./app");
 
-srv.listen(port,()=>{
-    console.log('Server Up');
+const port = process.env.PORT || 5050;
+
+const srv = http.createServer(app);
+
+srv.listen(port, "0.0.0.0", () => {
+  console.log("Server Up on port:", port);
 });

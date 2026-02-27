@@ -18,7 +18,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve your static HTML files (login.html, products.html)
+
 app.use(express.static(path.join(__dirname, "api", "v1", "views")));
 
 // MongoDB Connection
