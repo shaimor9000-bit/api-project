@@ -9,6 +9,6 @@ const Schema = new mongoose.Schema({
   pages: Number,
   isBorrowed: { type: Boolean, default: false },
   borrowedAt: { type: Date, default: null }
-});
+}); //books database schema 
 
 module.exports = mongoose.model('products', Schema);
